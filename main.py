@@ -35,8 +35,8 @@ Respond ONLY with a valid JSON object with the keys "summary", "recommendation",
 Do not add any text, comments, or markdown formatting outside of the JSON object.
 
 - "summary": A simple, one-sentence explanation of why the query is slow, written in plain English for a non-technical project manager. Avoid technical jargon.
-- "recommendation": Suggest a query rewrite if possible;The recommendation must include the simple changes that can be made in the query to optimize the duration and the query faster.
-- "optimized_query": A more efficient version of the provided SQL query. If no optimization is possible, return the same query.
+- "recommendation": Suggest a query rewrite if possible; The recommendation must include the simple changes that can be made in the query to optimize the duration and make query faster and simpler.
+- "optimized_query": A more efficient version of the provided SQL query in terms of duration and provide the query that would take less time. If no optimization is possible, return the same query.
 
 ### START DATA ###
 execution_time_seconds: {query_input.execution_time_sec}

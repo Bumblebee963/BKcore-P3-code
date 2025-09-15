@@ -9,7 +9,7 @@ const WebSocket = require('ws');
 const { Client } = require('pg');
 const axios = require('axios');
 const { Parser } = require('node-sql-parser');
-import dotenv from "dotenv";
+const dotenv = require('dotenv');
 
 dotenv.config();
 const port = 3000;
@@ -27,6 +27,9 @@ const dbConfig = {
     password: process.env.PASSWORD,
     port: 5432,
 };
+
+console.log("DEBUG: Password loaded from .env:", process.env.PASSWORD ? "Yes" : "No, it's UNDEFINED!");
+// --- 🔼 YE LINE ADD KARO 🔼 ---
 
 const logDirectoryPath = "C:\\Program Files\\PostgreSQL\\17\\data\\log";
 const AI_SERVER_URL = 'http://localhost:8000/analyze-query-gemini';
@@ -91,59 +94,81 @@ app.post('/issues/:hash/solve', async (req, res) => {
 
 
 async function findAndSyncIssues(newData) {
+    console.log("DEBUG #1: findAndSyncIssues function chala."); // DEBUG
     const client = new Client(dbConfig);
     const parser = new Parser();
     try {
         await client.connect();
+        console.log("DEBUG #2: Database se connection safal hua."); // DEBUG
+
         const lines = newData.split('\n');
-        let newIssueFound = false;
+        // ... (multi-line logic to create logEntries)
+        let logEntries = [];
+        let currentEntry = null;
         for (const line of lines) {
             if (line.includes('duration:') && line.includes('statement:')) {
+                if (currentEntry) logEntries.push(currentEntry);
                 const parts = line.split('statement:');
-                if (parts.length < 2) continue;
-                const query = parts[1].trim();
-                if (!query) continue;
-                const durationMatch = line.match(/duration: ([\d\.]+) ms/);
-                if (durationMatch && parseFloat(durationMatch[1]) > 0) {
-                    const durationInS = parseFloat(durationMatch[1]) / 1000;
+                currentEntry = { header: parts[0], queryLines: [parts[1]] };
+            } else if (currentEntry) {
+                currentEntry.queryLines.push(line);
+            }
+        }
+        if (currentEntry) logEntries.push(currentEntry);
+        
+        console.log(`DEBUG #3: Log file se ${logEntries.length} complete entries mili.`); // DEBUG
+
+        for (const entry of logEntries) {
+            const query = entry.queryLines.join('\n').trim();
+            if (!query) continue;
+
+            const durationMatch = entry.header.match(/duration: ([\d\.]+) ms/);
+            if (durationMatch) {
+                const durationInMs = parseFloat(durationMatch[1]);
+                console.log(`DEBUG #4: Query mili -> "${query.substring(0, 30)}...", Duration: ${durationInMs}ms`); // DEBUG
+
+                if (durationInMs > 0) {
+                    console.log("DEBUG #5: Query slow hai. Aage process kar raha hoon..."); // DEBUG
+                    
                     const queryHash = crypto.createHash('md5').update(query).digest('hex');
                     const { rows } = await client.query("SELECT query_hash FROM issues WHERE query_hash = $1", [queryHash]);
+                    
                     if (rows.length === 0) {
+                        console.log("DEBUG #6: Ye ek NAYI issue hai. DB mein INSERT karne jaa raha hoon..."); // DEBUG
+                        // ... (baaki ka AI waala logic same rahega)
                         let tableName = null;
                         try {
                             const ast = parser.astify(query);
-                            if (ast.from && ast.from.length > 0) {
-                                tableName = ast.from[0].table;
-                            }
+                            if (ast.from && ast.from.length > 0) tableName = ast.from[0].table;
                         } catch (e) { continue; }
                         if (!tableName) continue;
-                        console.log(`➕ New issue found for table '${tableName}'! Sending to AI...`);
+
                         const tableSchema = await getTableSchema(tableName);
                         const aiResponse = await axios.post(AI_SERVER_URL, {
                             sql_query: query,
-                            execution_time_sec: durationInS,
+                            execution_time_sec: durationInMs / 1000,
                             table_schema: tableSchema
                         });
                         const { summary, recommendation, optimized_query } = aiResponse.data;
                         await client.query(
                             `INSERT INTO issues (query_hash, query_text, status, execution_time_sec, summary, recommendation, optimized_query) 
                              VALUES ($1, $2, 'unsolved', $3, $4, $5, $6)`,
-                            [queryHash, query, durationInS, summary, Array.isArray(recommendation) ? recommendation.join(' ') : recommendation, optimized_query]
+                            [queryHash, query, durationInMs / 1000, summary, Array.isArray(recommendation) ? recommendation.join(' ') : recommendation, optimized_query]
                         );
-                        newIssueFound = true;
+                        console.log("DEBUG #7: Nayi issue DB mein INSERT ho gayi!"); // DEBUG
                     } else {
+                        console.log("DEBUG #6: Ye issue purani hai. Sirf time update kar raha hoon."); // DEBUG
                         await client.query("UPDATE issues SET last_seen = CURRENT_TIMESTAMP, status = 'unsolved' WHERE query_hash = $1", [queryHash]);
                     }
                 }
             }
         }
-        if (newIssueFound) {
-            broadcast({ message: 'new_issue_found' });
-        }
     } catch (err) {
-        console.error(" Error during log sync:", err.response ? err.response.data : err.message);
+        // Poora error object print karo
+        console.error("❌ DEBUG: Function mein ERROR aaya. Poori detail:", err);
     } finally {
         if (client) await client.end();
+        console.log("DEBUG #8: Function ne apna kaam poora kiya."); // DEBUG
     }
 }
 
