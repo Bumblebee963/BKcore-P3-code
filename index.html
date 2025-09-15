@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB Issue Queue</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
+        h1 { color: #1877f2; }
+        #issues-container { min-height: 200px; }
+        .issue-card {
+            background-color: white; border: 1px solid #dddfe2; border-radius: 8px;
+            padding: 20px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); max-width: 800px;
+        }
+        button {
+            background-color: #42b72a; color: white; border: none; padding: 12px 20px;
+            border-radius: 6px; font-size: 16px; cursor: pointer; margin-top: 15px;
+        }
+        button:hover { background-color: #36a420; }
+        code { background-color: #e9ebee; padding: 3px 6px; border-radius: 4px; }
+        #status { font-style: italic; color: #606770; }
+    </style>
+</head>
+<body>
+
+    <h1>Database Issue Queue 👨‍⚕️</h1>
+    <p id="status">Connecting to server...</p>
+    <div id="issues-container">
+        </div>
+
+    <script>
+        const issuesContainer = document.getElementById('issues-container');
+        const statusP = document.getElementById('status');
+        const API_BASE_URL = 'http://localhost:3000';
+        const PYTHON_API_URL='http://localhost:8000';
+
+        
+        async function fetchNextIssue() {
+            issuesContainer.innerHTML = '<p>Loading next issue...</p>';
+            try {
+                const response = await fetch(`${API_BASE_URL}/issues/next`);
+                const issue = await response.json();
+                
+                
+                issuesContainer.innerHTML = ''; 
+
+                if (issue) {
+                    const card = document.createElement('div');
+                    card.className = 'issue-card';
+                    card.id = issue.query_hash;
+                    card.innerHTML = `
+                        <h3>New Slow Query Detected</h3>
+                <p><strong>Query:</strong> <code>${issue.query_text}</code></p>
+                <p><strong>Execution Time:</strong> <span class="time">${parseFloat(issue.execution_time_sec).toFixed(2)} seconds</span></p>
+                <p><strong>Last Seen:</strong> ${new Date(issue.last_seen).toLocaleString()}</p>
+                <hr>
+                <h4>🤖 AI Analysis:</h4>
+                <p><strong>Summary:</strong> ${issue.summary}</p>
+                <p><strong>Recommendation:</strong> <code>${issue.recommendation}</code></p>
+                <p><strong>Optimized Query:</strong> <code>${issue.optimized_query}</code></p>
+                <br>
+                <button class="solve-btn" onclick="solveIssue('${issue.query_hash}')">Mark as Solved & Get Next</button>
+            `;
+                    issuesContainer.appendChild(card);
+                } else {
+                    issuesContainer.innerHTML = '<h3>✅ All issues solved! Great job!</h3>';
+                }
+            } catch (error) {
+                console.error('Error fetching issue:', error);
+                issuesContainer.innerHTML = `<p>❌ Could not connect to server.</p>`;
+            }
+        }
+
+        
+        async function solveIssue(hash) {
+            const card = document.getElementById(hash);
+            if(card) card.style.opacity = '0.5';
+            
+            try {
+                await fetch(`${API_BASE_URL}/issues/${hash}/solve`, { method: 'POST' });
+                
+            } catch (error) {
+                console.error('Error solving issue:', error);
+                alert('Could not mark issue as solved.');
+                if(card) card.style.opacity = '1';
+            }
+        }
+
+        // WebSocket
+        const ws = new WebSocket('ws://localhost:3000');
+
+        ws.onopen = () => {
+            statusP.textContent = 'Connected to server. Listening for live updates...';
+        };
+
+        
+        ws.onmessage = event => {
+            const data = JSON.parse(event.data);
+            if (data.message === 'new_issue_found' || data.message === 'issue_solved_fetch_next') {
+                console.log('Server sent a signal to refresh. Fetching next issue...');
+                fetchNextIssue();
+            }
+        };
+
+        ws.onclose = () => {
+            statusP.textContent = 'Disconnected from server. Please refresh.';
+            statusP.style.color = 'red';
+        };
+
+        
+        fetchNextIssue();
+    </script>
+
+</body>
+</html>
