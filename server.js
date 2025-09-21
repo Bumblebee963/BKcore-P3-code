@@ -29,7 +29,7 @@ const dbConfig = {
 };
 
 console.log("DEBUG: Password loaded from .env:", process.env.PASSWORD ? "Yes" : "No, it's UNDEFINED!");
-// --- 🔼 YE LINE ADD KARO 🔼 ---
+
 
 const logDirectoryPath = "C:\\Program Files\\PostgreSQL\\17\\data\\log";
 const AI_SERVER_URL = 'http://localhost:8000/analyze-query-gemini';
@@ -94,7 +94,7 @@ app.post('/issues/:hash/solve', async (req, res) => {
 
 
 async function findAndSyncIssues(newData) {
-    console.log("DEBUG #1: findAndSyncIssues function chala."); // DEBUG
+    //console.log("DEBUG #1: findAndSyncIssues function chala."); // DEBUG
     const client = new Client(dbConfig);
     const parser = new Parser();
     try {
@@ -125,17 +125,17 @@ async function findAndSyncIssues(newData) {
             const durationMatch = entry.header.match(/duration: ([\d\.]+) ms/);
             if (durationMatch) {
                 const durationInMs = parseFloat(durationMatch[1]);
-                console.log(`DEBUG #4: Query mili -> "${query.substring(0, 30)}...", Duration: ${durationInMs}ms`); // DEBUG
+                //console.log(`DEBUG #4: Query found -> "${query.substring(0, 30)}...", Duration: ${durationInMs}ms`); // DEBUG
 
                 if (durationInMs > 0) {
-                    console.log("DEBUG #5: Query slow hai. Aage process kar raha hoon..."); // DEBUG
+                    console.log(" Query is slow. Further processing..."); // DEBUG
                     
                     const queryHash = crypto.createHash('md5').update(query).digest('hex');
                     const { rows } = await client.query("SELECT query_hash FROM issues WHERE query_hash = $1", [queryHash]);
                     
                     if (rows.length === 0) {
-                        console.log("DEBUG #6: Ye ek NAYI issue hai. DB mein INSERT karne jaa raha hoon..."); // DEBUG
-                        // ... (baaki ka AI waala logic same rahega)
+                        console.log("➕New Issue found, Inserting into databse..."); // DEBUG
+                        
                         let tableName = null;
                         try {
                             const ast = parser.astify(query);
@@ -155,9 +155,9 @@ async function findAndSyncIssues(newData) {
                              VALUES ($1, $2, 'unsolved', $3, $4, $5, $6)`,
                             [queryHash, query, durationInMs / 1000, summary, Array.isArray(recommendation) ? recommendation.join(' ') : recommendation, optimized_query]
                         );
-                        console.log("DEBUG #7: Nayi issue DB mein INSERT ho gayi!"); // DEBUG
+                        
                     } else {
-                        console.log("DEBUG #6: Ye issue purani hai. Sirf time update kar raha hoon."); // DEBUG
+                        
                         await client.query("UPDATE issues SET last_seen = CURRENT_TIMESTAMP, status = 'unsolved' WHERE query_hash = $1", [queryHash]);
                     }
                 }
@@ -165,10 +165,10 @@ async function findAndSyncIssues(newData) {
         }
     } catch (err) {
         // Poora error object print karo
-        console.error("❌ DEBUG: Function mein ERROR aaya. Poori detail:", err);
+        console.error("Error:", err);
     } finally {
         if (client) await client.end();
-        console.log("DEBUG #8: Function ne apna kaam poora kiya."); // DEBUG
+        //console.log("DEBUG #8: Function ne apna kaam poora kiya."); // DEBUG
     }
 }
 
