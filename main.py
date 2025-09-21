@@ -78,15 +78,15 @@ async def analyze_query(query_input:QueryInput):
         response = model.generate_content(prompt, generation_config=generation_config)
 
         text = response.text
-        print(f"✅ AI Response Received:\n{text}")
+        print(f" AI Response Received:\n{text}")
 
         recommendation = Output.parse_raw(text)
         return recommendation
     except json.JSONDecodeError:
         error_detail = f"AI did not return valid JSON. Response: {text}"
-        print(f"❌ ERROR: {error_detail}")
+        print(f" ERROR: {error_detail}")
         raise HTTPException(status_code=500, detail=error_detail)
     except Exception as e:
         error_detail = f"An unexpected error occurred: {e}"
-        print(f"❌ ERROR: {error_detail}")
+        print(f" ERROR: {error_detail}")
         raise HTTPException(status_code=500, detail=error_detail)

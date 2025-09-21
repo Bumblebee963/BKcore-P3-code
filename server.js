@@ -99,10 +99,10 @@ async function findAndSyncIssues(newData) {
     const parser = new Parser();
     try {
         await client.connect();
-        console.log("DEBUG #2: Database se connection safal hua."); // DEBUG
+        //console.log("DEBUG #2: Database se connection safal hua."); // DEBUG
 
         const lines = newData.split('\n');
-        // ... (multi-line logic to create logEntries)
+        
         let logEntries = [];
         let currentEntry = null;
         for (const line of lines) {
@@ -116,7 +116,7 @@ async function findAndSyncIssues(newData) {
         }
         if (currentEntry) logEntries.push(currentEntry);
         
-        console.log(`DEBUG #3: Log file se ${logEntries.length} complete entries mili.`); // DEBUG
+        //console.log(`DEBUG #3: Log file se ${logEntries.length} complete entries mili.`); // DEBUG
 
         for (const entry of logEntries) {
             const query = entry.queryLines.join('\n').trim();
